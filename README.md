@@ -38,57 +38,52 @@ st.markdown("""
 
 </style>
 
+<div class="doc-card">
 
-<div class='doc-card'>
+<div class="doc-title">🗑️ Détection & Classification de Poubelles (Pleine / Vide)</div>
 
-<div class='doc-title'>🗑️ Détection & Classification de Poubelles (Pleine / Vide)</div>
+<h2>📌 Reconnaissance d’objets avec YOLOv8 + Application Web Streamlit</h2>
 
-<h2>📌 Reconnaissance d’objets avec YOLOv8 + Streamlit</h2>
-
+<h2>📖 1. Description du Projet</h2>
 <p>
-Ce projet a pour objectif de développer une application complète capable :
+Ce projet a pour objectif de développer un système complet de détection d’objets permettant :
+<ul>
+<li>de détecter automatiquement une poubelle dans une image,</li>
+<li>de localiser la poubelle via une bounding box,</li>
+<li>de déterminer si elle est pleine ou vide.</li>
+</ul>
+L’utilisateur peut envoyer une image via l’application Streamlit, et le modèle renvoie une image annotée avec la prédiction finale.
 </p>
 
-<ul>
-<li>🟦 de détecter automatiquement une poubelle dans une image,</li>
-<li>🟦 de localiser la poubelle via une bounding box,</li>
-<li>🟦 de déterminer si la poubelle est pleine ou vide,</li>
-<li>🟦 d’afficher un résultat annoté clair et précis.</li>
-</ul>
-
-<h2>🤖 1. Modèle d’IA utilisé : YOLOv8</h2>
-
+<h2>🤖 2. Modèle d’IA utilisé : YOLOv8</h2>
 <p>
-YOLOv8 est un modèle puissant pour :
-</p>
+YOLOv8 est un modèle récent et performant pour la détection d’objets.  
+Il effectue :
 <ul>
-<li>🔍 Détection d’objets</li>
-<li>📦 Localisation (bounding boxes)</li>
-<li>🏷️ Classification (poubelle vide / pleine)</li>
+<li><b>Détection</b> – identifier l’objet,</li>
+<li><b>Localisation</b> – tracer une bounding box,</li>
+<li><b>Classification</b> – prédire si la poubelle est pleine ou vide.</li>
 </ul>
-
-<p>Le modèle utilise :</p>
-
+YOLOv8 utilise :
 <ul>
-<li>📐 <b>IoU</b> pour évaluer la qualité des prédictions,</li>
-<li>🚫 <b>NMS</b> pour supprimer les doublons,</li>
-<li>⚡ Une architecture rapide et optimisée pour le temps réel.</li>
+<li><b>IoU</b> (Intersection over Union) pour vérifier la précision des boxes,</li>
+<li><b>NMS</b> (Non-Maximum Suppression) pour filtrer les meilleures détections.</li>
 </ul>
-
-<h2>📝 2. Annotation des Images (LabelImg)</h2>
-
-<p>
-Les images ont été annotées manuellement via <b>LabelImg</b> :
 </p>
 
+<h2>📝 3. Annotation des images (LabelImg)</h2>
+<p>
+Les images ont été annotées avec <b>LabelImg</b> :
 <ul>
-<li>✏️ tracé des bounding boxes,</li>
-<li>🏷️ assignation d’une classe (poubelle_vide ou poubelle_pleine),</li>
-<li>📄 export automatique des labels au format YOLO.</li>
+<li>tracé manuel des bounding boxes,</li>
+<li>attribution d’une classe (poubelle_vide / poubelle_pleine),</li>
+<li>export automatique en format YOLO : (cls, bx, by, bw, bh).</li>
 </ul>
+Cela garantit un dataset propre pour l’entraînement.
+</p>
 
-<h2>📂 3. Structure du Dataset</h2>
-
+<h2>📂 4. Dataset</h2>
+<p>Structure finale :</p>
 <pre>
 dataset_final/
  ├── train/
@@ -103,18 +98,15 @@ dataset_final/
  └── data.yaml
 </pre>
 
-Classes disponibles :
-<ul>
-<li>0 → 🟩 poubelle_vide</li>
-<li>1 → 🟥 poubelle_pleine</li>
-</ul>
+<p><b>Classes :</b><br>
+0 : poubelle_vide<br>
+1 : poubelle_pleine</p>
 
-<h2>🧠 4. Entraînement du modèle</h2>
+<h2>🧠 5. Entraînement du modèle</h2>
 
 <pre>
 from ultralytics import YOLO
 model = YOLO("yolov8n.pt")
-
 model.train(
     data="dataset_final/data.yaml",
     epochs=20,
@@ -123,28 +115,31 @@ model.train(
 )
 </pre>
 
-Le modèle final est sauvegardé dans :
-<b>runs/detect/train/weights/best.pt</b>
+<p>Le modèle final est enregistré sous :  
+<b>runs/detect/train/weights/best.pt</b></p>
 
-<h2>🔍 5. Test & Prédiction</h2>
+<h2>🔍 6. Test & Prédiction</h2>
 
 <pre>
+from ultralytics import YOLO
 model = YOLO("best.pt")
 results = model("test.jpg")[0]
 results.show()
 </pre>
 
-<h2>🌐 6. Application Web Streamlit</h2>
-
+<h2>🌐 7. Application Web Streamlit</h2>
+<p>
 Fonctionnalités :
 <ul>
-<li>🖼️ Upload d'image</li>
-<li>🤖 Prédiction YOLOv8</li>
-<li>🟦 Affichage de l’image annotée</li>
-<li>📊 Classification pleine / vide</li>
+<li>Uploader une image ou une vidéo</li>
+<li>Détection avec YOLOv8</li>
+<li>Image annotée + prédiction affichée</li>
+<li>Statistiques en direct</li>
+<li>Capture automatique des frames détectées</li>
 </ul>
+</p>
 
-<h2>📦 7. Installation</h2>
+<h2>📦 8. Installation</h2>
 
 <pre>
 git clone https://github.com/faty-mbengue/poubelle.git
@@ -153,17 +148,25 @@ pip install -r requirements.txt
 streamlit run app.py
 </pre>
 
-<h2>🚀 8. Déploiement</h2>
+<h2>📁 9. Structure du dépôt GitHub</h2>
+<pre>
+poubelle/
+ ├── app.py
+ ├── best.pt
+ ├── requirements.txt
+ ├── README.md
+</pre>
 
-Déployable en quelques clics via :
-<b>Streamlit Cloud</b>
-
+<h2>🚀 10. Déploiement</h2>
+<p>
+Déploiement Streamlit Cloud :
 <ul>
-<li>Push sur GitHub</li>
-<li>Connexion à streamlit.io/cloud</li>
-<li>Déploiement automatique ✔️</li>
+<li>Push du projet sur GitHub</li>
+<li>Connexion à https://streamlit.io/cloud</li>
+<li>Choisir le repo → Lancer</li>
+<li>L'application devient publique</li>
 </ul>
+</p>
 
 </div>
-
 """, unsafe_allow_html=True)
