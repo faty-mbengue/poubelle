@@ -184,7 +184,7 @@ def predict_image(upload):
     results = model(img, conf=0.5)[0]
     return results
 
-def predict_video(upload, frame_interval=30):
+def predict_video(upload, frame_interval=1, stats_placeholder=None):
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(upload.read())
     tfile.close()
@@ -252,6 +252,22 @@ def predict_video(upload, frame_interval=30):
                 thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
                 st.session_state.captured_frames.append((thumb, label, f"{minutes:02d}:{seconds:02d}"))
             
+            # Mettre à jour les stats en temps réel
+            if stats_placeholder:
+                with stats_placeholder.container():
+                    st.markdown(f"""
+                        <div class="stat-box">
+                            <div class="stat-number">{st.session_state.counts['total']}</div>
+                            <div class="stat-label">Détections totales</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Vides", st.session_state.counts['vide'], delta=None)
+                    with col2:
+                        st.metric("Pleines", st.session_state.counts['pleine'], delta=None)
+            
             stframe.image(annotated, channels="RGB", use_container_width=True)
             analyzed_count += 1
             status_text.success(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
@@ -279,30 +295,33 @@ with st.sidebar:
             "Intervalle d'analyse (secondes)",
             min_value=1,
             max_value=60,
-            value=30,
+            value=1,
             help="Plus l'intervalle est court, plus l'analyse est précise mais lente"
         )
     else:
-        frame_interval = 30
+        frame_interval = 1
     
     st.markdown("---")
     st.markdown("### 📊 Statistiques en temps réel")
     
-    if "counts" in st.session_state and st.session_state.counts["total"] > 0:
-        st.markdown(f"""
-            <div class="stat-box">
-                <div class="stat-number">{st.session_state.counts['total']}</div>
-                <div class="stat-label">Détections totales</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("🟢 Vides", st.session_state.counts['vide'])
-        with col2:
-            st.metric("🔴 Pleines", st.session_state.counts['pleine'])
-    else:
-        st.info("Aucune détection pour le moment")
+    stats_placeholder = st.empty()
+    
+    with stats_placeholder.container():
+        if "counts" in st.session_state and st.session_state.counts["total"] > 0:
+            st.markdown(f"""
+                <div class="stat-box">
+                    <div class="stat-number">{st.session_state.counts['total']}</div>
+                    <div class="stat-label">Détections totales</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Vides", st.session_state.counts['vide'])
+            with col2:
+                st.metric("Pleines", st.session_state.counts['pleine'])
+        else:
+            st.info("Aucune détection pour le moment")
     
     st.markdown("---")
     st.markdown("### ℹ️ Performances du modèle")
@@ -369,10 +388,11 @@ if file:
         st.video(file)
 
         if st.button("🚀 Lancer l'analyse vidéo", use_container_width=True):
-            st.warning(f"⏱️ La vidéo sera analysée toutes les **{frame_interval} secondes**")
+            st.warning(f"La vidéo sera analysée toutes les {frame_interval} seconde(s)")
             
-            with st.spinner("🎥 Analyse de la vidéo en cours..."):
-                predict_video(file, frame_interval)
+            with st.spinner("Analyse de la vidéo en cours..."):
+                # Récupérer le placeholder des stats depuis la sidebar
+                predict_video(file, frame_interval, stats_placeholder)
             
             if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
                 st.markdown("---")
@@ -386,7 +406,7 @@ if file:
                         st.markdown(f"""
                             <div class="frame-caption">
                                 {icon} {label}<br>
-                                ⏱️ {timestamp}
+                                {timestamp}
                             </div>
                         """, unsafe_allow_html=True)
 
