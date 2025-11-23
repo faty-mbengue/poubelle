@@ -2,7 +2,7 @@
 
 <div class="doc-title">🗑️ Détection & Classification de Poubelles (Pleine / Vide)</div>
 
-<h2>📌 Reconnaissance d’objets avec yolo11n + Application Web t</h2>
+<h2>📌 Reconnaissance d’objets avec yolo11n + Application Web </h2>
 
 <h2>📖 1. Description du Projet</h2>
 <p>
@@ -86,6 +86,13 @@ model = YOLO("best.pt")
 results = model("test.jpg")[0]
 results.show()
 </pre>
+### 📊 Performances du Modèle (YOLOv11n)
+
+- **mAP50:** 85.7%  
+- **mAP50-95:** 43.5%  
+- **Précision:** 85.9%  
+- **Recall:** 79.4%  
+- **Version du modèle:** YOLOv11n
 
 <h2>🌐 7. Application Web Streamlit</h2>
 <p>
