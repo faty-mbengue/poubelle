@@ -17,14 +17,14 @@ L’utilisateur peut envoyer une image via l’application Streamlit, et le mod�
 
 <h2>🤖 2. Modèle d’IA utilisé : YOLOv11n</h2>
 <p>
-YOLOv8 est un modèle récent et performant pour la détection d’objets.  
+YOLOv11n est un modèle récent et performant pour la détection d’objets.  
 Il effectue :
 <ul>
 <li><b>Détection</b> – identifier l’objet,</li>
 <li><b>Localisation</b> – tracer une bounding box,</li>
 <li><b>Classification</b> – prédire si la poubelle est pleine ou vide.</li>
 </ul>
-YOLOv8 utilise :
+YOLOv11n utilise :
 <ul>
 <li><b>IoU</b> (Intersection over Union) pour vérifier la précision des boxes,</li>
 <li><b>NMS</b> (Non-Maximum Suppression) pour filtrer les meilleures détections.</li>
