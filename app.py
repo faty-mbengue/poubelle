@@ -162,7 +162,7 @@ with col_video:
                             st.session_state.last_frame = annotated_rgb
                             st.session_state.frame_index += 1
                             time.sleep(0.1)
-                            st.experimental_rerun()
+                            st.rerun()
                     else:
                         if st.session_state.last_frame is not None:
                             placeholder.image(st.session_state.last_frame, use_container_width=True)
@@ -202,3 +202,4 @@ st.download_button("📥 Télécharger toutes les captures (ZIP)", data=zip_buf,
 
 st.markdown("<hr style='border:1px solid rgba(255,255,255,0.04)'/>", unsafe_allow_html=True)
 st.caption("Développé par Fatou Mbengue — YOLOv8 • LabelImg • Streamlit")
+
