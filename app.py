@@ -200,6 +200,26 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
     with col2:
         st.info(f"Prédiction : 1 frame / {frame_interval}s")
 
+    # Contrôles vidéo modernes
+    control_col1, control_col2, control_col3 = st.columns([1, 1, 3])
+    
+    with control_col1:
+        if st.button("▶️ Play", use_container_width=True, key="play_btn"):
+            st.session_state.video_paused = False
+    
+    with control_col2:
+        if st.button("⏸️ Pause", use_container_width=True, key="pause_btn"):
+            st.session_state.video_paused = True
+    
+    with control_col3:
+        speed_options = {"0.5x": 0.5, "1x": 1.0, "2x": 2.0}
+        selected_speed = st.select_slider(
+            "Vitesse",
+            options=list(speed_options.keys()),
+            value="1x"
+        )
+        playback_speed = speed_options[selected_speed]
+
     stframe = st.empty()
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -209,6 +229,8 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
         st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
     if "captured_frames" not in st.session_state:
         st.session_state.captured_frames = []
+    if "video_paused" not in st.session_state:
+        st.session_state.video_paused = False
     
     st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
     st.session_state.captured_frames = []
@@ -219,6 +241,11 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
     analyzed_count = 0
 
     while True:
+        # Gestion pause
+        if st.session_state.video_paused:
+            time.sleep(0.1)
+            continue
+        
         ret, frame = cap.read()
         if not ret:
             break
@@ -254,7 +281,7 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
             
             status_text.success(f"Frame {analyzed_count} | {minutes:02d}:{seconds:02d} | Détections: {num_detections}")
 
-        # Dessin des boxes avec la dernière détection
+        # Dessin des boxes
         display_frame = frame.copy()
         
         if last_detection is not None:
@@ -264,26 +291,26 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
                 conf = float(box.conf[0])
                 color = (0, 255, 0) if cls == 0 else (255, 0, 0)
 
-                cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(display_frame, f"{model.names[cls]} {conf:.2f}",
-                           (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 3)
+                
+                # Background pour le texte
+                label_text = f"{model.names[cls]} {conf:.2f}"
+                (text_width, text_height), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                cv2.rectangle(display_frame, (x1, y1-25), (x1+text_width+10, y1), color, -1)
+                cv2.putText(display_frame, label_text, (x1+5, y1-8), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-        # Ajouter timestamp
-        cv2.putText(
-            display_frame,
-            f"Temps: {minutes:02d}:{seconds:02d}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 0),
-            2
-        )
+        # Timestamp avec fond
+        timestamp_text = f"{minutes:02d}:{seconds:02d}"
+        cv2.rectangle(display_frame, (5, 5), (150, 45), (0, 0, 0), -1)
+        cv2.putText(display_frame, timestamp_text, (10, 35), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         # Convertir et afficher
         frame_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         stframe.image(frame_rgb, channels="RGB", use_container_width=True)
 
-        # Mettre à jour stats en temps réel
+        # Mettre à jour stats
         if stats_placeholder and frame_id % detect_every == 0:
             with stats_placeholder.container():
                 st.markdown(f"""
@@ -301,6 +328,10 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
 
         frame_id += 1
         progress_bar.progress(frame_id / total_frames)
+        
+        # Délai selon la vitesse
+        if playback_speed < 1.0:
+            time.sleep(0.01 / playback_speed)
 
     cap.release()
     status_text.success(f"✅ Analyse terminée : {analyzed_count} frames analysées | Total détections: {st.session_state.counts['total']}")
