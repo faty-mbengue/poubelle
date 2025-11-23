@@ -23,9 +23,9 @@ st.markdown("""
 def load_model():
     try:
         if not os.path.exists("best2.pt"):
-            st.error("❌ Modèle best.pt introuvable")
+            st.error("❌ Modèle best2.pt introuvable")
             st.stop()
-        return YOLO("best.pt")
+        return YOLO("best2.pt")
     except Exception as e:
         st.error(f"❌ Erreur de chargement: {e}")
         st.stop()
@@ -194,5 +194,6 @@ if file:
 
 else:
     st.info("➡️ Upload une image ou une vidéo pour commencer.")
+
 
 
