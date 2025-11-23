@@ -22,7 +22,7 @@ st.markdown("""
 @st.cache_resource
 def load_model():
     try:
-        if not os.path.exists("best.pt"):
+        if not os.path.exists("best1.pt"):
             st.error("❌ Modèle best.pt introuvable")
             st.stop()
         return YOLO("best.pt")
@@ -194,3 +194,4 @@ if file:
 
 else:
     st.info("➡️ Upload une image ou une vidéo pour commencer.")
+
