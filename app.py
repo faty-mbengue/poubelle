@@ -20,7 +20,7 @@ st.set_page_config(
 )
 
 # Chemin vers ton modèle (modifie si besoin)
-MODEL_PATH = r"C:/Users/faty/Desktop/mesdonnes/split/runs/detect/poubelles_augmented2/weights/best.pt"
+MODEL_PATH = r"best2.pt"
 
 # -------------------------
 # CSS minimal (clair)
@@ -320,3 +320,4 @@ else:
 # Footer
 st.markdown("<hr/>")
 st.caption("Développé par Fatou Mbengue — YOLOv8 • LabelImg • Streamlit")
+
