@@ -230,7 +230,7 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
 
     cap.release()
 
-        progress_bar.progress(frame_id / total_frames)
+    progress_bar.progress(frame_id / total_frames)
 
     cap.release()
     status_text.success(f"✅ Analyse terminée : {analyzed_count} frames analysées | Total détections: {st.session_state.counts['total']}")
@@ -405,4 +405,5 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
+
 
