@@ -1,48 +1,8 @@
-st.markdown("""
-<style>
-
-.doc-card {
-    background: #161b22;
-    border: 1px solid #30363d;
-    padding: 25px;
-    border-radius: 18px;
-    margin-bottom: 25px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.4);
-    animation: fadeIn 1s ease-in-out;
-    color: #e6edf3;
-    font-size: 17px;
-}
-
-.doc-card h1, .doc-card h2, .doc-card h3 {
-    color: #58a6ff !important;
-    font-family: 'Segoe UI';
-}
-
-.doc-card ul {
-    line-height: 1.7;
-}
-
-.doc-title {
-    font-size: 40px;
-    text-align: center;
-    color: #58a6ff;
-    font-weight: bold;
-    margin-bottom: 30px;
-    text-shadow: 0 0 25px #0d6efd;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-</style>
-
 <div class="doc-card">
 
 <div class="doc-title">🗑️ Détection & Classification de Poubelles (Pleine / Vide)</div>
 
-<h2>📌 Reconnaissance d’objets avec YOLOv8 + Application Web Streamlit</h2>
+<h2>📌 Reconnaissance d’objets avec yolo11n + Application Web t</h2>
 
 <h2>📖 1. Description du Projet</h2>
 <p>
@@ -106,7 +66,7 @@ dataset_final/
 
 <pre>
 from ultralytics import YOLO
-model = YOLO("yolov8n.pt")
+model = YOLO("yolo11n")
 model.train(
     data="dataset_final/data.yaml",
     epochs=20,
@@ -159,13 +119,7 @@ poubelle/
 
 <h2>🚀 10. Déploiement</h2>
 <p>
-Déploiement Streamlit Cloud :
-<ul>
-<li>Push du projet sur GitHub</li>
-<li>Connexion à https://streamlit.io/cloud</li>
-<li>Choisir le repo → Lancer</li>
-<li>L'application devient publique</li>
-</ul>
+Déploiement Streamlit Cloud 
 </p>
 
 </div>
