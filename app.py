@@ -5,6 +5,7 @@ from PIL import Image
 import cv2
 import numpy as np
 import os
+import time
 
 st.set_page_config(
     page_title="Smart Bin Detection",
@@ -184,7 +185,7 @@ def predict_image(upload):
     results = model(img, conf=0.5)[0]
     return results
 
-def predict_video(upload, frame_interval=1, stats_placeholder=None):
+def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_frames=False):
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(upload.read())
     tfile.close()
@@ -213,12 +214,14 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None):
     
     frame_count = 0
     analyzed_count = 0
+    last_annotated = None
     
     while True:
         success, frame = cap.read()
         if not success:
             break
         
+        # Analyser la frame si c'est le moment
         if frame_count % int(fps * frame_interval) == 0:
             results = model(frame, conf=0.5)[0]
             annotated = results.plot()
@@ -252,6 +255,10 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None):
                 thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
                 st.session_state.captured_frames.append((thumb, label, f"{minutes:02d}:{seconds:02d}"))
             
+            last_annotated = annotated
+            analyzed_count += 1
+            status_text.success(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
+            
             # Mettre à jour les stats en temps réel
             if stats_placeholder:
                 with stats_placeholder.container():
@@ -267,10 +274,19 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None):
                         st.metric("Vides", st.session_state.counts['vide'], delta=None)
                     with col2:
                         st.metric("Pleines", st.session_state.counts['pleine'], delta=None)
+        
+        # Afficher la frame (annotée si disponible, sinon originale)
+        if show_all_frames:
+            if last_annotated is not None:
+                display_frame = last_annotated
+            else:
+                display_frame = frame
             
-            stframe.image(annotated, channels="RGB", use_container_width=True)
-            analyzed_count += 1
-            status_text.success(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
+            stframe.image(display_frame, channels="RGB", use_container_width=True)
+            time.sleep(1/fps)  # Vitesse normale de la vidéo
+        elif last_annotated is not None and frame_count % int(fps * frame_interval) == 0:
+            stframe.image(last_annotated, channels="RGB", use_container_width=True)
+            time.sleep(0.03)
         
         frame_count += 1
         progress = frame_count / total_frames
@@ -298,8 +314,15 @@ with st.sidebar:
             value=1,
             help="Plus l'intervalle est court, plus l'analyse est précise mais lente"
         )
+        
+        show_all_frames = st.checkbox(
+            "Afficher toutes les frames (animation fluide)",
+            value=False,
+            help="Affiche toutes les frames entre les analyses pour une animation fluide"
+        )
     else:
         frame_interval = 1
+        show_all_frames = False
     
     st.markdown("---")
     st.markdown("### 📊 Statistiques en temps réel")
@@ -391,8 +414,7 @@ if file:
             st.warning(f"La vidéo sera analysée toutes les {frame_interval} seconde(s)")
             
             with st.spinner("Analyse de la vidéo en cours..."):
-                # Récupérer le placeholder des stats depuis la sidebar
-                predict_video(file, frame_interval, stats_placeholder)
+                predict_video(file, frame_interval, stats_placeholder, show_all_frames)
             
             if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
                 st.markdown("---")
