@@ -496,6 +496,80 @@ else:
         """, unsafe_allow_html=True)
     
     st.info("👆 Uploadez une image ou une vidéo dans la barre latérale pour commencer")
+if "last_video_path" in st.session_state:
+
+    st.markdown("""
+    <style>
+    .video-container {
+        position: relative;
+        width: 100%;
+        max-width: 900px;
+        margin: auto;
+    }
+
+    video {
+        width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+    }
+
+    .controls {
+        position: absolute;
+        bottom: 15px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+
+    .control-btn {
+        background: rgba(30, 41, 59, 0.7);
+        padding: 12px;
+        border-radius: 50%;
+        backdrop-filter: blur(5px);
+        cursor: pointer;
+        transition: 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .control-btn:hover {
+        transform: scale(1.15);
+        background: rgba(51, 65, 85, 0.9);
+    }
+
+    </style>
+
+    <div class="video-container">
+        <video id="customVideo" controlslist="nodownload">
+            <source src="{}" type="video/mp4">
+        </video>
+
+        <div class="controls">
+            <div class="control-btn" onclick="togglePlay()">
+                <span id="playPauseIcon">▶️</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const video = document.getElementById("customVideo");
+    const icon = document.getElementById("playPauseIcon");
+
+    function togglePlay() {
+        if (video.paused) {
+            video.play();
+            icon.textContent = "⏸️";
+        } else {
+            video.pause();
+            icon.textContent = "▶️";
+        }
+    }
+    </script>
+    """.format(st.session_state.last_video_path),
+    unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
@@ -506,3 +580,4 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
+
