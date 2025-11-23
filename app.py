@@ -324,15 +324,8 @@ with st.sidebar:
             value=1,
             help="Plus l'intervalle est court, plus l'analyse est précise mais lente"
         )
-        
-        show_all_frames = st.checkbox(
-            "Afficher toutes les frames (animation fluide)",
-            value=False,
-            help="Affiche toutes les frames entre les analyses pour une animation fluide"
-        )
     else:
         frame_interval = 1
-        show_all_frames = False
     
     st.markdown("---")
     st.markdown("### 📊 Statistiques en temps réel")
@@ -424,8 +417,7 @@ if file:
             st.warning(f"La vidéo sera analysée toutes les {frame_interval} seconde(s)")
             
             with st.spinner("Analyse de la vidéo en cours..."):
-                predict_video(file, frame_interval, stats_placeholder, show_all_frames)
-            
+                predict_video_live(file, frame_interval, stats_placeholder)
             if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
                 st.markdown("---")
                 st.markdown("### 📸 Frames capturées")
