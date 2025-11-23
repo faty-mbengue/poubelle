@@ -206,7 +206,7 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
     with col1:
         st.info(f"Vidéo : {total_frames} frames @ {fps:.1f} FPS")
     with col2:
-        st.info(f"Intervalle d'analyse : 1 frame / {frame_interval}s")
+        st.info(f"Mode : Prédiction en live toutes les {frame_interval}s")
     
     stframe = st.empty()
     progress_bar = st.progress(0)
@@ -215,14 +215,16 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
     frame_count = 0
     analyzed_count = 0
     last_annotated = None
+    frame_skip = int(fps * frame_interval)
     
     while True:
         success, frame = cap.read()
         if not success:
             break
         
-        # Analyser la frame si c'est le moment
-        if frame_count % int(fps * frame_interval) == 0:
+        # Analyser CHAQUE frame à l'intervalle défini
+        if frame_count % frame_skip == 0:
+            # Prédiction en temps réel
             results = model(frame, conf=0.5)[0]
             annotated = results.plot()
             
@@ -230,6 +232,7 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
             minutes = int(timestamp // 60)
             seconds = int(timestamp % 60)
             
+            # Ajouter le timestamp sur l'image
             cv2.putText(
                 annotated,
                 f"Temps: {minutes:02d}:{seconds:02d}",
@@ -239,6 +242,19 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
                 (0, 255, 0),
                 2
             )
+            
+            # Compter les détections
+            num_detections = len(results.boxes)
+            if num_detections > 0:
+                cv2.putText(
+                    annotated,
+                    f"Detections: {num_detections}",
+                    (10, 70),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (255, 0, 0),
+                    2
+                )
             
             for box in results.boxes:
                 cls = int(box.cls[0])
@@ -255,9 +271,11 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
                 thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
                 st.session_state.captured_frames.append((thumb, label, f"{minutes:02d}:{seconds:02d}"))
             
-            last_annotated = annotated
+            # AFFICHER LA FRAME AVEC PRÉDICTION IMMÉDIATEMENT
+            stframe.image(annotated, channels="RGB", use_container_width=True)
+            
             analyzed_count += 1
-            status_text.success(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
+            status_text.success(f"Frame {analyzed_count} | {minutes:02d}:{seconds:02d} | Détections: {num_detections}")
             
             # Mettre à jour les stats en temps réel
             if stats_placeholder:
@@ -271,29 +289,38 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
                     
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.metric("Vides", st.session_state.counts['vide'], delta=None)
+                        st.metric("Vides", st.session_state.counts['vide'])
                     with col2:
-                        st.metric("Pleines", st.session_state.counts['pleine'], delta=None)
+                        st.metric("Pleines", st.session_state.counts['pleine'])
         
-        # Afficher la frame (annotée si disponible, sinon originale)
-        if show_all_frames:
-            if last_annotated is not None:
-                display_frame = last_annotated
-            else:
-                display_frame = frame
+        # Afficher toutes les frames si l'option est activée
+        elif show_all_frames:
+            # Afficher la frame originale entre les analyses
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            stframe.image(display_frame, channels="RGB", use_container_width=True)
-            time.sleep(1/fps)  # Vitesse normale de la vidéo
-        elif last_annotated is not None and frame_count % int(fps * frame_interval) == 0:
-            stframe.image(last_annotated, channels="RGB", use_container_width=True)
-            time.sleep(0.03)
+            timestamp = frame_count / fps
+            minutes = int(timestamp // 60)
+            seconds = int(timestamp % 60)
+            
+            cv2.putText(
+                rgb_frame,
+                f"Temps: {minutes:02d}:{seconds:02d}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+            
+            stframe.image(rgb_frame, channels="RGB", use_container_width=True)
+            time.sleep(1/fps)
         
         frame_count += 1
         progress = frame_count / total_frames
         progress_bar.progress(progress)
     
     cap.release()
-    status_text.success(f"Analyse terminée : {analyzed_count} frames analysées")
+    status_text.success(f"✅ Analyse terminée : {analyzed_count} frames analysées | Total détections: {st.session_state.counts['total']}")
 
 # Sidebar
 with st.sidebar:
