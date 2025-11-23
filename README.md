@@ -66,13 +66,36 @@ dataset_final/
 
 <pre>
 from ultralytics import YOLO
-model = YOLO("yolo11n")
-model.train(
-    data="dataset_final/data.yaml",
+
+model = YOLO("yolo11n.pt")
+
+results = model.train(
+    data=r"C:\Users\faty\Desktop\mesdonnes\split\data.yaml",
     epochs=20,
-    imgsz=640,
-    batch=8
+    imgsz=416,
+    batch=2,
+    workers=0,
+    amp=False,
+    cache=False,
+    patience=20,
+    
+    # AUGMENTATION FORTE
+    hsv_h=0.015,
+    hsv_s=0.7,
+    hsv_v=0.4,
+    degrees=15,
+    translate=0.1,
+    scale=0.5,
+    fliplr=0.5,
+    mosaic=1.0,
+    mixup=0.1,
+    copy_paste=0.1,
+    
+    project="runs/detect",
+    name="poubelles_augmented",
 )
+
+print("\nModèle avec augmentation: runs/detect/poubelles_augmented/weights/best.pt")
 </pre>
 
 <p>Le modèle final est enregistré sous :  
@@ -106,16 +129,7 @@ Fonctionnalités :
 </ul>
 </p>
 
-<h2>📦 8. Installation</h2>
-
-<pre>
-git clone https://github.com/faty-mbengue/poubelle.git
-cd poubelle
-pip install -r requirements.txt
-streamlit run app.py
-</pre>
-
-<h2>📁 9. Structure du dépôt GitHub</h2>
+<h2>📁 8. Structure du dépôt GitHub</h2>
 <pre>
 poubelle/
  ├── app.py
@@ -124,7 +138,7 @@ poubelle/
  ├── README.md
 </pre>
 
-<h2>🚀 10. Déploiement</h2>
+<h2>🚀 9. Déploiement</h2>
 <p>
 Déploiement Streamlit Cloud 
 </p>
