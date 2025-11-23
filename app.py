@@ -10,6 +10,7 @@ import io
 import zipfile
 import os
 
+
 # -------------------------
 # CONFIG
 # -------------------------
@@ -103,6 +104,32 @@ def save_captures_as_zip(captures):
             z.writestr(filename, img_bytes)
     buf.seek(0)
     return buf
+
+
+def save_captures_as_zip(captures):
+    """
+    captures = [
+        (image_numpy, label, timestamp)
+    ]
+    """
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for i, (img_np, label, timestamp) in enumerate(captures):
+
+            # Convertir l'image annotée en PNG
+            success, png = cv2.imencode(".png", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
+            if not success:
+                continue
+            
+            # Nom du fichier dans le ZIP
+            file_name = f"{i:03d}_{label}_{timestamp.replace(':','-')}.png"
+
+            # Ajouter au ZIP
+            zip_file.writestr(file_name, png.tobytes())
+
+    zip_buffer.seek(0)
+    return zip_buffer
 
 # -------------------------
 # SIDEBAR: upload + options
@@ -320,4 +347,5 @@ else:
 # Footer
 st.markdown("<hr/>")
 st.caption("Développé par Fatou Mbengue — YOLOv8 • LabelImg • Streamlit")
+
 
