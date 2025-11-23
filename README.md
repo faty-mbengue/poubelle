@@ -15,7 +15,7 @@ Ce projet a pour objectif de développer un système complet de détection d’o
 L’utilisateur peut envoyer une image via l’application Streamlit, et le modèle renvoie une image annotée avec la prédiction finale.
 </p>
 
-<h2>🤖 2. Modèle d’IA utilisé : YOLOv8</h2>
+<h2>🤖 2. Modèle d’IA utilisé : YOLOv11n</h2>
 <p>
 YOLOv8 est un modèle récent et performant pour la détection d’objets.  
 Il effectue :
@@ -92,7 +92,7 @@ results.show()
 Fonctionnalités :
 <ul>
 <li>Uploader une image ou une vidéo</li>
-<li>Détection avec YOLOv8</li>
+<li>Détection avec YOLOv11n</li>
 <li>Image annotée + prédiction affichée</li>
 <li>Statistiques en direct</li>
 <li>Capture automatique des frames détectées</li>
@@ -123,4 +123,4 @@ Déploiement Streamlit Cloud
 </p>
 
 </div>
-""", unsafe_allow_html=True)
+
