@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 st.set_page_config(
-    page_title="Détection Poubelles - YOLO11",
+    page_title="Détection Poubelles - YOLO",
     page_icon="🗑️",
     layout="wide"
 )
@@ -22,7 +22,7 @@ st.markdown("""
 @st.cache_resource
 def load_model():
     try:
-        if not os.path.exists("best1.pt"):
+        if not os.path.exists("best2.pt"):
             st.error("❌ Modèle best.pt introuvable")
             st.stop()
         return YOLO("best.pt")
@@ -194,4 +194,5 @@ if file:
 
 else:
     st.info("➡️ Upload une image ou une vidéo pour commencer.")
+
 
