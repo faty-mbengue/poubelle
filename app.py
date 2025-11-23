@@ -445,14 +445,18 @@ if file:
                     """, unsafe_allow_html=True)
 
     elif ftype.startswith("video"):
-        st.markdown("### 🎬 Vidéo uploadée")
-        st.video(file)
+        st.markdown("### 🎬 Analyse vidéo")
+        
+        # NE PAS afficher le player natif qui tourne en boucle
+        # st.video(file)  ← SUPPRIMÉ
 
         if st.button("🚀 Lancer l'analyse vidéo", use_container_width=True):
             st.warning(f"La vidéo sera analysée toutes les {frame_interval} seconde(s)")
             
-            with st.spinner("Analyse de la vidéo en cours..."):
-                predict_video_live(file, frame_interval, stats_placeholder, playback_speed)
+            # Réinitialiser le fichier pour la lecture
+            file.seek(0)
+            
+            predict_video_live(file, frame_interval, stats_placeholder, playback_speed)
             
             if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
                 st.markdown("---")
