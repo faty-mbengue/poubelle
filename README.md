@@ -124,7 +124,7 @@ Fonctionnalités :
 <li>Uploader une image ou une vidéo</li>
 <li>Détection avec YOLOv11n</li>
 <li>Image annotée + prédiction affichée</li>
-<li>Statistiques en direct</li>
+<li>Statistiques </li>
 <li>Capture automatique des frames détectées</li>
 </ul>
 </p>
