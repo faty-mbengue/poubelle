@@ -8,11 +8,11 @@
 <p>
 Ce projet a pour objectif de développer un système complet de détection d’objets permettant :
 <ul>
-<li>de détecter automatiquement une poubelle dans une image,</li>
+<li>de détecter automatiquement une poubelle dans une image ou dans une video,</li>
 <li>de localiser la poubelle via une bounding box,</li>
 <li>de déterminer si elle est pleine ou vide.</li>
 </ul>
-L’utilisateur peut envoyer une image via l’application Streamlit, et le modèle renvoie une image annotée avec la prédiction finale.
+L’utilisateur peut envoyer une image ou une video via l’application Streamlit, et le modèle renvoie une image ou les images capturees si c'est une video, annotée avec la prédiction finale.
 </p>
 
 <h2>🤖 2. Modèle d’IA utilisé : YOLOv11n</h2>
