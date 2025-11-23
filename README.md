@@ -39,7 +39,6 @@ Les images ont été annotées avec <b>LabelImg</b> :
 <li>attribution d’une classe (poubelle_vide / poubelle_pleine),</li>
 <li>export automatique en format YOLO : (cls, bx, by, bw, bh).</li>
 </ul>
-Cela garantit un dataset propre pour l’entraînement.
 </p>
 
 <h2>📂 4. Dataset</h2>
@@ -70,7 +69,7 @@ from ultralytics import YOLO
 model = YOLO("yolo11n.pt")
 
 results = model.train(
-    data=r"C:\Users\faty\Desktop\mesdonnes\split\data.yaml",
+    data=r"data.yaml",
     epochs=20,
     imgsz=416,
     batch=2,
