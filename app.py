@@ -206,7 +206,7 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
     with col1:
         st.info(f"Vidéo : {total_frames} frames @ {fps:.1f} FPS")
     with col2:
-        st.info(f"Mode : Prédiction en live toutes les {frame_interval}s")
+        st.info(f"Prédiction : 1 frame / {frame_interval}s")
     
     stframe = st.empty()
     progress_bar = st.progress(0)
@@ -214,47 +214,24 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
     
     frame_count = 0
     analyzed_count = 0
-    last_annotated = None
     frame_skip = int(fps * frame_interval)
+    last_prediction = None
     
     while True:
         success, frame = cap.read()
         if not success:
             break
         
-        # Analyser CHAQUE frame à l'intervalle défini
+        timestamp = frame_count / fps
+        minutes = int(timestamp // 60)
+        seconds = int(timestamp % 60)
+        
+        # Faire une prédiction toutes les X secondes
         if frame_count % frame_skip == 0:
-            # Prédiction en temps réel
             results = model(frame, conf=0.5)[0]
-            annotated = results.plot()
+            last_prediction = results
             
-            timestamp = frame_count / fps
-            minutes = int(timestamp // 60)
-            seconds = int(timestamp % 60)
-            
-            # Ajouter le timestamp sur l'image
-            cv2.putText(
-                annotated,
-                f"Temps: {minutes:02d}:{seconds:02d}",
-                (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2
-            )
-            
-            # Compter les détections
             num_detections = len(results.boxes)
-            if num_detections > 0:
-                cv2.putText(
-                    annotated,
-                    f"Detections: {num_detections}",
-                    (10, 70),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 0, 0),
-                    2
-                )
             
             for box in results.boxes:
                 cls = int(box.cls[0])
@@ -266,18 +243,11 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
                 elif cls == 1:
                     st.session_state.counts["pleine"] += 1
                     label = "poubelle_pleine"
-                
-                thumb = cv2.resize(annotated, (320, 200))
-                thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
-                st.session_state.captured_frames.append((thumb, label, f"{minutes:02d}:{seconds:02d}"))
-            
-            # AFFICHER LA FRAME AVEC PRÉDICTION IMMÉDIATEMENT
-            stframe.image(annotated, channels="RGB", use_container_width=True)
             
             analyzed_count += 1
             status_text.success(f"Frame {analyzed_count} | {minutes:02d}:{seconds:02d} | Détections: {num_detections}")
             
-            # Mettre à jour les stats en temps réel
+            # Mettre à jour les stats
             if stats_placeholder:
                 with stats_placeholder.container():
                     st.markdown(f"""
@@ -292,28 +262,52 @@ def predict_video(upload, frame_interval=1, stats_placeholder=None, show_all_fra
                         st.metric("Vides", st.session_state.counts['vide'])
                     with col2:
                         st.metric("Pleines", st.session_state.counts['pleine'])
+            
+            # Sauvegarder thumbnail
+            if num_detections > 0:
+                annotated = results.plot()
+                thumb = cv2.resize(annotated, (320, 200))
+                thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
+                st.session_state.captured_frames.append((thumb, f"{num_detections} détection(s)", f"{minutes:02d}:{seconds:02d}"))
         
-        # Afficher toutes les frames si l'option est activée
-        elif show_all_frames:
-            # Afficher la frame originale entre les analyses
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            timestamp = frame_count / fps
-            minutes = int(timestamp // 60)
-            seconds = int(timestamp % 60)
-            
-            cv2.putText(
-                rgb_frame,
-                f"Temps: {minutes:02d}:{seconds:02d}",
-                (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2
-            )
-            
-            stframe.image(rgb_frame, channels="RGB", use_container_width=True)
-            time.sleep(1/fps)
+        # AFFICHER TOUTES LES FRAMES
+        display_frame = frame.copy()
+        
+        # Si on a une prédiction récente, dessiner les boxes
+        if last_prediction is not None:
+            for box in last_prediction.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                
+                # Couleur selon la classe
+                color = (0, 255, 0) if cls == 0 else (255, 0, 0)
+                label_text = f"{model.names[cls]} {conf:.2f}"
+                
+                # Dessiner la box
+                cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(display_frame, label_text, (x1, y1-10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        
+        # Ajouter timestamp
+        cv2.putText(
+            display_frame,
+            f"Temps: {minutes:02d}:{seconds:02d}",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2
+        )
+        
+        # Convertir BGR to RGB
+        display_frame = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        
+        # AFFICHER LA FRAME
+        stframe.image(display_frame, channels="RGB", use_container_width=True)
+        
+        # Petit délai pour que l'animation soit visible
+        time.sleep(1/min(fps, 30))  # Max 30 FPS pour l'affichage
         
         frame_count += 1
         progress = frame_count / total_frames
@@ -451,10 +445,9 @@ if file:
                 for idx, (img, label, timestamp) in enumerate(st.session_state.captured_frames):
                     with cols[idx % 4]:
                         st.image(img, use_container_width=True)
-                        icon = "🟢" if label == "poubelle_vide" else "🔴"
                         st.markdown(f"""
                             <div class="frame-caption">
-                                {icon} {label}<br>
+                                {label}<br>
                                 {timestamp}
                             </div>
                         """, unsafe_allow_html=True)
