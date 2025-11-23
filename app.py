@@ -175,9 +175,9 @@ def load_model():
         st.error(f"❌ Erreur de chargement: {e}")
         st.stop()
 
-with st.spinner("🔄 Chargement du modèle IA..."):
+with st.spinner("Chargement du modèle..."):
     model = load_model()
-    st.success("✅ Modèle chargé avec succès !")
+    st.success("Modèle chargé avec succès")
 
 def predict_image(upload):
     img = Image.open(upload).convert("RGB")
@@ -203,9 +203,9 @@ def predict_video(upload, frame_interval=30):
     
     col1, col2 = st.columns(2)
     with col1:
-        st.info(f"📹 **{total_frames}** frames @ **{fps:.1f}** FPS")
+        st.info(f"Vidéo : {total_frames} frames @ {fps:.1f} FPS")
     with col2:
-        st.info(f"⏱️ Analyse: **1 frame / {frame_interval}s**")
+        st.info(f"Intervalle d'analyse : 1 frame / {frame_interval}s")
     
     stframe = st.empty()
     progress_bar = st.progress(0)
@@ -254,15 +254,14 @@ def predict_video(upload, frame_interval=30):
             
             stframe.image(annotated, channels="RGB", use_container_width=True)
             analyzed_count += 1
-            status_text.success(f"✅ Frame **{analyzed_count}** analysée à **{minutes:02d}:{seconds:02d}**")
+            status_text.success(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
         
         frame_count += 1
         progress = frame_count / total_frames
         progress_bar.progress(progress)
     
     cap.release()
-    st.balloons()
-    status_text.success(f"🎉 Analyse terminée : **{analyzed_count} frames** analysées")
+    status_text.success(f"Analyse terminée : {analyzed_count} frames analysées")
 
 # Sidebar
 with st.sidebar:
@@ -306,12 +305,13 @@ with st.sidebar:
         st.info("Aucune détection pour le moment")
     
     st.markdown("---")
-    st.markdown("### ℹ️ À propos")
+    st.markdown("### ℹ️ Performances du modèle")
     st.markdown("""
-        **Version:** 2.0  
-        **Modèle:** YOLOv11  
-        **Précision:** 91.8%  
-        **mAP50:** 85.3%
+        **mAP50:** 85.7%  
+        **mAP50-95:** 43.5%  
+        **Précision:** 85.9%  
+        **Recall:** 79.4%  
+        **Version:** YOLOv11n
     """)
 
 # Corps principal
@@ -336,7 +336,7 @@ if file:
                     
                     boxes = results.boxes
                     if len(boxes) > 0:
-                        st.success(f"✅ {len(boxes)} poubelle(s) détectée(s)")
+                        st.success(f"{len(boxes)} poubelle(s) détectée(s)")
         
         if 'results' in locals():
             boxes = results.boxes
@@ -428,8 +428,7 @@ st.markdown("---")
 st.markdown("""
     <div style='text-align: center; color: white; padding: 2rem;'>
         <p style='font-size: 0.9rem;'>
-            Développé avec ❤️ par <strong>Faty Mbengue</strong><br>
-            Propulsé par YOLOv11 & Streamlit
+            Développé par <strong>Faty Mbengue</strong> | Propulsé par YOLOv11 & Streamlit
         </p>
     </div>
 """, unsafe_allow_html=True)
