@@ -4,10 +4,8 @@ import tempfile
 from PIL import Image
 import cv2
 import numpy as np
-import time
-import io
-import zipfile
 import os
+import time
 
 st.set_page_config(
     page_title="Smart Bin Detection",
@@ -16,7 +14,150 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# En-tête avec CSS personnalisé (à compléter selon vos styles)
+# CSS personnalisé pour un design moderne
+st.markdown("""
+    <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+    
+    /* Style général */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    /* Titre principal */
+    .title-container {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        backdrop-filter: blur(10px);
+    }
+    
+    .main-title {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 3.5rem;
+        font-weight: 700;
+        text-align: center;
+        margin: 0;
+        line-height: 1.2;
+    }
+    
+    .subtitle {
+        color: #666;
+        text-align: center;
+        font-size: 1.2rem;
+        margin-top: 0.5rem;
+        font-weight: 300;
+    }
+    
+    /* Cartes */
+    .card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        margin: 1rem 0;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Stats boxes */
+    .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
+    }
+    
+    /* Boutons personnalisés */
+    .stButton>button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    /* Sidebar */
+    .css-1d391kg {
+        background: rgba(255, 255, 255, 0.95);
+    }
+    
+    /* Upload zone */
+    .uploadedFile {
+        border: 2px dashed #667eea;
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    /* Progress bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Detection card */
+    .detection-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-left: 4px solid #667eea;
+    }
+    
+    /* Frame caption */
+    .frame-caption {
+        background: rgba(102, 126, 234, 0.1);
+        padding: 0.5rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+        text-align: center;
+        font-weight: 500;
+    }
+    
+    /* Icons */
+    .icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# En-tête
 st.markdown("""
     <div class="title-container">
         <h1 class="main-title">♻️ Smart Bin Detection</h1>
@@ -26,181 +167,310 @@ st.markdown("""
 
 @st.cache_resource
 def load_model():
-    if not os.path.exists("best2.pt"):
-        st.error("❌ Modèle best2.pt introuvable")
+    try:
+        if not os.path.exists("best2.pt"):
+            st.error("❌ Modèle best2.pt introuvable")
+            st.stop()
+        return YOLO("best2.pt")
+    except Exception as e:
+        st.error(f"❌ Erreur de chargement: {e}")
         st.stop()
-    return YOLO("best2.pt")
 
 with st.spinner("Chargement du modèle..."):
     model = load_model()
     st.success("Modèle chargé avec succès")
 
-# Initialisation session state
-for key, default in {
-    "video_path": None,
-    "cap": None,
-    "paused": True,
-    "frame_index": 0,
-    "last_frame": None,
-    "captured_frames": [],
-    "counts": {"total": 0, "pleine": 0, "vide": 0},
-    "last_saved_index": -1
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+def predict_image(upload):
+    img = Image.open(upload).convert("RGB")
+    results = model(img, conf=0.5)[0]
+    return results
 
-def read_frame_at(cap, idx):
-    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-    ret, frame = cap.read()
-    return ret, frame
+def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
+    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    tfile.write(upload.read())
+    tfile.close()
 
-def make_thumbnail(img_rgb, w=320, h=200):
-    pil = Image.fromarray(img_rgb)
-    pil.thumbnail((w, h))
-    buf = io.BytesIO()
-    pil.save(buf, format="JPEG")
-    buf.seek(0)
-    return buf.getvalue()
+    cap = cv2.VideoCapture(tfile.name)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-def save_captures_as_zip(captures):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as z:
-        for i, (img_bytes, label, idx) in enumerate(captures):
-            filename = f"frame_{idx}_{label}_{i}.jpg"
-            z.writestr(filename, img_bytes)
-    buf.seek(0)
-    return buf
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info(f"Vidéo : {total_frames} frames @ {fps:.1f} FPS")
+    with col2:
+        st.info(f"Prédiction : 1 frame / {frame_interval}s")
 
-col_video, col_info = st.columns([3,1])
+    stframe = st.empty()
+    progress_bar = st.progress(0)
+    status_text = st.empty()
 
-with col_video:
-    uploaded_file = st.file_uploader(
-        "Choisis une image ou une vidéo",
-        type=["jpg", "jpeg", "png", "mp4", "avi"]
-    )
+    # Reset stats
+    if "counts" not in st.session_state:
+        st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
+    if "captured_frames" not in st.session_state:
+        st.session_state.captured_frames = []
+    
+    st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
+    st.session_state.captured_frames = []
 
-    if uploaded_file is None:
-        st.info("➡️ Charge une image ou une vidéo depuis la barre latérale.")
-    else:
-        ftype = uploaded_file.type
-        if ftype.startswith("image"):
-            st.subheader("🖼️ Image")
-            st.image(uploaded_file, use_container_width=True)
+    detect_every = int(fps * frame_interval)
+    frame_id = 0
+    last_detection = None
+    analyzed_count = 0
 
-            if st.button("🚀 Lancer la détection (Image)"):
-                with st.spinner("Analyse en cours..."):
-                    results = model(Image.open(uploaded_file).convert("RGB"))[0]
-                    annotated = results.plot()
-                    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                    st.image(annotated_rgb, caption="Résultat", use_container_width=True)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-        elif ftype.startswith("video"):
-            st.subheader("🎬 Vidéo")
-            st.video(uploaded_file)
+        timestamp = frame_id / fps
+        minutes = int(timestamp // 60)
+        seconds = int(timestamp % 60)
 
-            if st.button("▶️ Lancer la détection (Vidéo)"):
-                st.session_state.paused = False
-                st.session_state.frame_index = 0
-                st.session_state.last_frame = None
-                st.session_state.captured_frames = []
-                st.session_state.counts = {"total": 0, "pleine": 0, "vide": 0}
-                st.session_state.last_saved_index = -1
+        # Détection toutes les X secondes
+        if frame_id % detect_every == 0:
+            last_detection = model(frame, conf=0.5)[0]
+            analyzed_count += 1
 
-                tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-                tfile.write(uploaded_file.read())
-                tfile.flush()
-                st.session_state.video_path = tfile.name
-                st.session_state.cap = cv2.VideoCapture(st.session_state.video_path)
-
-            c1, c2, c3 = st.columns([1,1,1])
-            with c1:
-                if st.button("⏸️ Pause"):
-                    st.session_state.paused = True
-            with c2:
-                if st.button("▶️ Reprendre"):
-                    st.session_state.paused = False
-            with c3:
-                if st.button("⏭️ Avancer d'une frame"):
-                    st.session_state.paused = True
-                    st.session_state.frame_index += 1
-
-            placeholder = st.empty()
-            cap = st.session_state.cap
-
-            if cap is not None:
-                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-                if st.session_state.frame_index >= total_frames:
-                    st.success("Lecture terminée.")
+            num_detections = len(last_detection.boxes)
+            
+            for box in last_detection.boxes:
+                cls = int(box.cls[0])
+                st.session_state.counts["total"] += 1
+                
+                if cls == 0:
+                    st.session_state.counts["vide"] += 1
+                    label = "poubelle_vide"
                 else:
-                    if not st.session_state.paused:
-                        ret, frame = read_frame_at(cap, st.session_state.frame_index)
-                        if not ret:
-                            st.warning("Impossible de lire la frame.")
-                        else:
-                            results = model(frame, conf=0.5)[0]
-                            annotated = results.plot()
-                            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                            placeholder.image(annotated_rgb, use_container_width=True)
+                    st.session_state.counts["pleine"] += 1
+                    label = "poubelle_pleine"
+            
+            # Sauvegarder thumbnail
+            if num_detections > 0:
+                annotated = last_detection.plot()
+                thumb = cv2.resize(annotated, (320, 200))
+                thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
+                st.session_state.captured_frames.append((thumb, f"{num_detections} détection(s)", f"{minutes:02d}:{seconds:02d}"))
+            
+            status_text.success(f"Frame {analyzed_count} | {minutes:02d}:{seconds:02d} | Détections: {num_detections}")
 
-                            has_detection = len(results.boxes) > 0
-                            idx = st.session_state.frame_index
+        # Dessin des boxes avec la dernière détection
+        display_frame = frame.copy()
+        
+        if last_detection is not None:
+            for box in last_detection.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                cls = int(box.cls[0])
+                conf = float(box.conf[0])
+                color = (0, 255, 0) if cls == 0 else (255, 0, 0)
 
-                            if has_detection and idx != st.session_state.last_saved_index:
-                                thumb_bytes = make_thumbnail(annotated_rgb)
-                                cls_id = int(results.boxes.cls[0])
-                                label = model.names[cls_id]
+                cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(display_frame, f"{model.names[cls]} {conf:.2f}",
+                           (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-                                st.session_state.captured_frames.append((thumb_bytes, label, idx))
-                                st.session_state.last_saved_index = idx
+        # Ajouter timestamp
+        cv2.putText(
+            display_frame,
+            f"Temps: {minutes:02d}:{seconds:02d}",
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2
+        )
 
-                                st.session_state.counts["total"] += 1
-                                if cls_id == 0:
-                                    st.session_state.counts["vide"] += 1
-                                elif cls_id == 1:
-                                    st.session_state.counts["pleine"] += 1
+        # Convertir et afficher
+        frame_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
+        stframe.image(frame_rgb, channels="RGB", use_container_width=True)
 
-                            st.session_state.last_frame = annotated_rgb
-                            st.session_state.frame_index += 1
+        # Mettre à jour stats en temps réel
+        if stats_placeholder and frame_id % detect_every == 0:
+            with stats_placeholder.container():
+                st.markdown(f"""
+                    <div class="stat-box">
+                        <div class="stat-number">{st.session_state.counts['total']}</div>
+                        <div class="stat-label">Détections totales</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Vides", st.session_state.counts["vide"])
+                with col2:
+                    st.metric("Pleines", st.session_state.counts["pleine"])
 
-                            time.sleep(0.1)
-                            st.rerun()
-                    else:
-                        if st.session_state.last_frame is not None:
-                            placeholder.image(st.session_state.last_frame, use_container_width=True)
-                        else:
-                            st.info("Vidéo prête. Cliquez sur ▶️ Reprendre pour lancer la détection.")
+        frame_id += 1
+        progress_bar.progress(frame_id / total_frames)
 
-with col_info:
-    st.markdown("<div class='card'><strong>ℹ️ Infos</strong></div>", unsafe_allow_html=True)
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.write("**Statistiques (captures vidéo)**")
-    st.write(f"- Total détections: **{st.session_state.counts['total']}**")
-    st.write(f"- Poubelles vides: **{st.session_state.counts['vide']}**")
-    st.write(f"- Poubelles pleines: **{st.session_state.counts['pleine']}**")
+    cap.release()
+    status_text.success(f"✅ Analyse terminée : {analyzed_count} frames analysées | Total détections: {st.session_state.counts['total']}")
+
+# Sidebar
+with st.sidebar:
+    st.markdown("### 📤 Upload")
+    file = st.file_uploader(
+        "Glissez votre fichier ici",
+        type=["jpg", "jpeg", "png", "mp4", "avi"],
+        help="Formats supportés: JPG, PNG, MP4, AVI"
+    )
+    
+    if file and file.type.startswith("video"):
+        st.markdown("---")
+        st.markdown("### ⚙️ Configuration")
+        frame_interval = st.slider(
+            "Intervalle d'analyse (secondes)",
+            min_value=1,
+            max_value=60,
+            value=1,
+            help="Plus l'intervalle est court, plus l'analyse est précise mais lente"
+        )
+    else:
+        frame_interval = 1
+    
     st.markdown("---")
-    st.write("Options:")
-    st.write(f"- Seuil confidence: 0.5")
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("### 📊 Statistiques en temps réel")
+    
+    stats_placeholder = st.empty()
+    
+    with stats_placeholder.container():
+        if "counts" in st.session_state and st.session_state.counts["total"] > 0:
+            st.markdown(f"""
+                <div class="stat-box">
+                    <div class="stat-number">{st.session_state.counts['total']}</div>
+                    <div class="stat-label">Détections totales</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Vides", st.session_state.counts['vide'])
+            with col2:
+                st.metric("Pleines", st.session_state.counts['pleine'])
+        else:
+            st.info("Aucune détection pour le moment")
+    
+    st.markdown("---")
+    st.markdown("### ℹ️ Performances du modèle")
+    st.markdown("""
+        **mAP50:** 85.7%  
+        **mAP50-95:** 43.5%  
+        **Précision:** 85.9%  
+        **Recall:** 79.4%  
+        **Version:** YOLOv11n
+    """)
+# Corps principal
+if file:
+    ftype = file.type
 
-st.markdown("---")
-st.subheader("📸 Frames capturées (dernières)")
+    if ftype.startswith("image"):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📷 Image originale")
+            st.image(file, use_container_width=True)
 
-captures = st.session_state.captured_frames[-24:] if st.session_state.captured_frames else []
+        with col2:
+            st.markdown("### 🎯 Zone de détection")
+            if st.button("🚀 Lancer l'analyse", use_container_width=True):
+                with st.spinner("🔍 Analyse en cours..."):
+                    results = predict_image(file)
+                    annotated = results.plot()
+                    
+                    st.image(annotated, channels="RGB", use_container_width=True)
+                    
+                    boxes = results.boxes
+                    if len(boxes) > 0:
+                        st.success(f"{len(boxes)} poubelle(s) détectée(s)")
+        
+        if 'results' in locals():
+            boxes = results.boxes
+            if len(boxes) > 0:
+                st.markdown("---")
+                st.markdown("### 📋 Détails des détections")
+                
+                for i, box in enumerate(boxes):
+                    cls = int(box.cls[0])
+                    conf = float(box.conf[0])
+                    classe = model.names[cls]
+                    
+                    icon = "🟢" if cls == 0 else "🔴"
+                    color = "#10b981" if cls == 0 else "#ef4444"
+                    
+                    st.markdown(f"""
+                        <div class="detection-card" style="border-left-color: {color}">
+                            <h4>{icon} Détection {i+1}: {classe}</h4>
+                            <p style="margin: 0.5rem 0;">
+                                <strong>Confiance:</strong> {conf:.2%}
+                            </p>
+                            <div style="background: {color}20; padding: 0.5rem; border-radius: 5px; margin-top: 0.5rem;">
+                                <div style="background: {color}; width: {conf*100}%; height: 8px; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
-if len(captures) == 0:
-    st.info("Aucune capture pour l'instant (lancer la détection sur une vidéo).")
+    elif ftype.startswith("video"):
+        st.markdown("### 🎬 Vidéo uploadée")
+        st.video(file)
+
+        if st.button("🚀 Lancer l'analyse vidéo", use_container_width=True):
+            st.warning(f"La vidéo sera analysée toutes les {frame_interval} seconde(s)")
+            
+            with st.spinner("Analyse de la vidéo en cours..."):
+                predict_video_live(file, frame_interval, stats_placeholder)
+            if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
+                st.markdown("---")
+                st.markdown("### 📸 Frames capturées")
+                
+                cols = st.columns(4)
+                for idx, (img, label, timestamp) in enumerate(st.session_state.captured_frames):
+                    with cols[idx % 4]:
+                        st.image(img, use_container_width=True)
+                        st.markdown(f"""
+                            <div class="frame-caption">
+                                {label}<br>
+                                {timestamp}
+                            </div>
+                        """, unsafe_allow_html=True)
+
 else:
-    cols = st.columns(4)
-    for i, (img_bytes, label, idx) in enumerate(reversed(captures)):
-        col = cols[i % 4]
-        with col:
-            st.image(img_bytes, caption=f"{label} — frame {idx}", use_container_width=True)
-            dlname = f"frame_{idx}_{label}.jpg"
-            st.download_button(f"Télécharger {i+1}", data=img_bytes, file_name=dlname, mime="image/jpeg")
+    # Landing page
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+            <div class="card">
+                <div class="icon">📷</div>
+                <h3>Images</h3>
+                <p>Détection instantanée sur vos photos</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+            <div class="card">
+                <div class="icon">🎥</div>
+                <h3>Vidéos</h3>
+                <p>Analyse frame par frame de vos vidéos</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+            <div class="card">
+                <div class="icon">📊</div>
+                <h3>Statistiques</h3>
+                <p>Rapports détaillés en temps réel</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.info("👆 Uploadez une image ou une vidéo dans la barre latérale pour commencer")
 
-zip_buf = save_captures_as_zip(st.session_state.captured_frames)
-st.download_button("📥 Télécharger toutes les captures (ZIP)", data=zip_buf, file_name="captures.zip", mime="application/zip")
-
-st.markdown("<hr style='border:1px solid rgba(255,255,255,0.04)'/>", unsafe_allow_html=True)
-st.caption("Développé par Faty Mbengue — YOLOv8 • LabelImg • Streamlit")
-
+# Footer
+st.markdown("---")
+st.markdown("""
+    <div style='text-align: center; color: white; padding: 2rem;'>
+        <p style='font-size: 0.9rem;'>
+            Développé par <strong>Faty Mbengue</strong> | Propulsé par YOLOv11 & Streamlit
+        </p>
+    </div>
+""", unsafe_allow_html=True)
