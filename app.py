@@ -41,6 +41,8 @@ def predict_image(upload):
     return results
 
 def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
+    if "captured_frames" not in st.session_state:
+        st.session_state.captured_frames = []
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(upload.read())
     tfile.close()
@@ -343,3 +345,4 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
+
