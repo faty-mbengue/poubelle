@@ -192,114 +192,44 @@ def predict_video_live(upload, frame_interval=1, stats_placeholder=None):
 
     cap = cv2.VideoCapture(tfile.name)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info(f"Vidéo : {total_frames} frames @ {fps:.1f} FPS")
-    with col2:
-        st.info(f"Prédiction : 1 frame / {frame_interval}s")
-
-    stframe = st.empty()
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-
-    # Reset stats
-    if "counts" not in st.session_state:
-        st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
-    if "captured_frames" not in st.session_state:
-        st.session_state.captured_frames = []
-    
-    st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
-    st.session_state.captured_frames = []
 
     detect_every = int(fps * frame_interval)
-    frame_id = 0
+
+    stframe = st.empty()
+
     last_detection = None
-    analyzed_count = 0
+    frame_id = 0
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        timestamp = frame_id / fps
-        minutes = int(timestamp // 60)
-        seconds = int(timestamp % 60)
-
-        # Détection toutes les X secondes
+        # Détection asynchrone
         if frame_id % detect_every == 0:
+            # On lance YOLO uniquement toutes les X secondes
             last_detection = model(frame, conf=0.5)[0]
-            analyzed_count += 1
 
-            num_detections = len(last_detection.boxes)
-            
-            for box in last_detection.boxes:
-                cls = int(box.cls[0])
-                st.session_state.counts["total"] += 1
-                
-                if cls == 0:
-                    st.session_state.counts["vide"] += 1
-                    label = "poubelle_vide"
-                else:
-                    st.session_state.counts["pleine"] += 1
-                    label = "poubelle_pleine"
-            
-            # Sauvegarder thumbnail
-            if num_detections > 0:
-                annotated = last_detection.plot()
-                thumb = cv2.resize(annotated, (320, 200))
-                thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
-                st.session_state.captured_frames.append((thumb, f"{num_detections} détection(s)", f"{minutes:02d}:{seconds:02d}"))
-            
-            status_text.success(f"Frame {analyzed_count} | {minutes:02d}:{seconds:02d} | Détections: {num_detections}")
-
-        # Dessin des boxes avec la dernière détection
+        # Dessin des boxes
         display_frame = frame.copy()
-        
-        if last_detection is not None:
+        if last_detection:
             for box in last_detection.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 cls = int(box.cls[0])
-                conf = float(box.conf[0])
                 color = (0, 255, 0) if cls == 0 else (255, 0, 0)
-
                 cv2.rectangle(display_frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(display_frame, f"{model.names[cls]} {conf:.2f}",
-                           (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
-        # Ajouter timestamp
-        cv2.putText(
-            display_frame,
-            f"Temps: {minutes:02d}:{seconds:02d}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 0),
-            2
-        )
-
-        # Convertir et afficher
+        # Conversion + affichage
         frame_rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
         stframe.image(frame_rgb, channels="RGB", use_container_width=True)
 
-        # Mettre à jour stats en temps réel
-        if stats_placeholder and frame_id % detect_every == 0:
-            with stats_placeholder.container():
-                st.markdown(f"""
-                    <div class="stat-box">
-                        <div class="stat-number">{st.session_state.counts['total']}</div>
-                        <div class="stat-label">Détections totales</div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Vides", st.session_state.counts["vide"])
-                with col2:
-                    st.metric("Pleines", st.session_state.counts["pleine"])
+        # Attente courte pour fluidité (~30 FPS)
+        time.sleep(1/30)
 
         frame_id += 1
+
+    cap.release()
+
         progress_bar.progress(frame_id / total_frames)
 
     cap.release()
@@ -475,3 +405,4 @@ st.markdown("""
         </p>
     </div>
 """, unsafe_allow_html=True)
+
