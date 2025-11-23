@@ -1,205 +1,200 @@
 import streamlit as st
 from ultralytics import YOLO
 import tempfile
-import cv2
 from PIL import Image
-import io
-import zipfile
+import cv2
+import numpy as np
 import os
-import time
 
-# Configuration de la page
 st.set_page_config(
-    page_title="Détection Poubelles - YOLOv8",
+    page_title="Détection Poubelles - YOLO",
     page_icon="🗑️",
     layout="wide"
 )
 
-# Chargement modèle avec cache
-MODEL_PATH = "best2.pt"
+st.markdown("""
+    <h1 style='text-align:center; color:#2E86C1;'>🗑️ Détection de Poubelles (Pleines / Vides)</h1>
+    <p style='text-align:center; font-size:18px;'>
+        Upload une image ou une vidéo — le modèle détecte la poubelle et indique si elle est pleine ou vide.
+    </p>
+""", unsafe_allow_html=True)
 
 @st.cache_resource
-def load_model(path):
+def load_model():
     try:
-        return YOLO(path)
+        if not os.path.exists("best2.pt"):
+            st.error("❌ Modèle best2.pt introuvable")
+            st.stop()
+        return YOLO("best2.pt")
     except Exception as e:
-        st.error(f"Erreur chargement modèle : {e}")
+        st.error(f"❌ Erreur de chargement: {e}")
         st.stop()
 
-model = load_model(MODEL_PATH)
+model = load_model()
 
-# Initialisation des variables dans st.session_state
-for key, default in {
-    "paused": True,
-    "frame_index": 0,
-    "last_frame": None,
-    "captured_frames": [],
-    "counts": {"total": 0, "vide": 0, "pleine": 0},
-    "last_saved_index": -1,
-    "video_path": None,
-    "cap": None,
-}.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
+def predict_image(upload):
+    img = Image.open(upload).convert("RGB")
+    results = model(img, conf=0.5)[0]
+    return results
 
-# Fonctions auxiliaires
-def read_frame_at(cap, idx):
-    cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-    ret, frame = cap.read()
-    return ret, frame
+def predict_video(upload, frame_interval=30):
+    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    tfile.write(upload.read())
+    tfile.close()
+    
+    cap = cv2.VideoCapture(tfile.name)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    if "counts" not in st.session_state:
+        st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
+    if "captured_frames" not in st.session_state:
+        st.session_state.captured_frames = []
+    
+    st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
+    st.session_state.captured_frames = []
+    
+    st.info(f"📹 Vidéo: {total_frames} frames @ {fps:.1f} FPS")
+    st.info(f"⏱️ Analyse: 1 frame toutes les {frame_interval} secondes")
+    
+    stframe = st.empty()
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    frame_count = 0
+    analyzed_count = 0
+    
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+        
+        if frame_count % int(fps * frame_interval) == 0:
+            results = model(frame, conf=0.5)[0]
+            annotated = results.plot()
+            
+            timestamp = frame_count / fps
+            minutes = int(timestamp // 60)
+            seconds = int(timestamp % 60)
+            
+            cv2.putText(
+                annotated,
+                f"Temps: {minutes:02d}:{seconds:02d}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
+            
+            for box in results.boxes:
+                cls = int(box.cls[0])
+                st.session_state.counts["total"] += 1
+                
+                if cls == 0:
+                    st.session_state.counts["vide"] += 1
+                    label = "poubelle_vide"
+                elif cls == 1:
+                    st.session_state.counts["pleine"] += 1
+                    label = "poubelle_pleine"
+                
+                thumb = cv2.resize(annotated, (320, 200))
+                thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
+                st.session_state.captured_frames.append((thumb, label, f"{minutes:02d}:{seconds:02d}"))
+            
+            stframe.image(annotated, channels="RGB", use_container_width=True)
+            analyzed_count += 1
+            status_text.text(f"Frame {analyzed_count} analysée à {minutes:02d}:{seconds:02d}")
+        
+        frame_count += 1
+        progress = frame_count / total_frames
+        progress_bar.progress(progress)
+    
+    cap.release()
+    status_text.success(f"✅ Analyse terminée: {analyzed_count} frames analysées")
 
-def make_thumbnail(img_rgb, w=320, h=200):
-    pil = Image.fromarray(img_rgb)
-    pil.thumbnail((w, h))
-    buf = io.BytesIO()
-    pil.save(buf, format="JPEG")
-    buf.seek(0)
-    return buf.getvalue()
-
-def save_captures_as_zip(captures):
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as z:
-        for i, (img_bytes, label, idx) in enumerate(captures):
-            filename = f"frame_{idx}_{label}_{i}.jpg"
-            z.writestr(filename, img_bytes)
-    buf.seek(0)
-    return buf
-
-# Interface principale
-col_video, col_info = st.columns([3,1])
-
-with col_video:
-    uploaded_file = st.file_uploader(
+with st.sidebar:
+    st.header("📤 Upload fichier")
+    file = st.file_uploader(
         "Choisis une image ou une vidéo",
         type=["jpg", "jpeg", "png", "mp4", "avi"]
     )
-
-    if uploaded_file is None:
-        st.info("➡️ Charge une image ou une vidéo depuis la barre latérale.")
+    
+    if file and file.type.startswith("video"):
+        st.markdown("---")
+        st.header("⚙️ Paramètres vidéo")
+        frame_interval = st.slider(
+            "Intervalle (secondes)",
+            min_value=1,
+            max_value=60,
+            value=30,
+            help="Analyse 1 frame toutes les X secondes"
+        )
     else:
-        ftype = uploaded_file.type
-        if ftype.startswith("image"):
-            st.subheader("🖼️ Image")
-            st.image(uploaded_file, use_container_width=True)
-
-            if st.button("🚀 Lancer la détection (Image)"):
-                with st.spinner("Analyse en cours..."):
-                    results = model(Image.open(uploaded_file).convert("RGB"))[0]
-                    annotated = results.plot()
-                    annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                    st.image(annotated_rgb, caption="Résultat", use_container_width=True)
-
-        elif ftype.startswith("video"):
-            st.subheader("🎬 Vidéo")
-            st.video(uploaded_file)  # Affiche vidéo native
-
-            if st.button("▶️ Lancer la détection (Vidéo)"):
-                st.session_state.paused = False
-                st.session_state.frame_index = 0
-                st.session_state.last_frame = None
-                st.session_state.captured_frames = []
-                st.session_state.counts = {"total": 0, "vide": 0, "pleine": 0}
-                st.session_state.last_saved_index = -1
-
-                # Sauvegarde temporaire et ouverture VideoCapture
-                tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-                tfile.write(uploaded_file.read())
-                tfile.flush()
-                st.session_state.video_path = tfile.name
-                st.session_state.cap = cv2.VideoCapture(st.session_state.video_path)
-
-            c1, c2, c3 = st.columns([1,1,1])
-            with c1:
-                if st.button("⏸️ Pause"):
-                    st.session_state.paused = True
-            with c2:
-                if st.button("▶️ Reprendre"):
-                    st.session_state.paused = False
-            with c3:
-                if st.button("⏭️ Frame suivante"):
-                    st.session_state.paused = True
-                    st.session_state.frame_index += 1
-
-            placeholder = st.empty()
-            cap = st.session_state.cap
-
-            if cap is not None:
-                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-                if st.session_state.frame_index >= total_frames:
-                    st.success("Lecture terminée.")
-                else:
-                    if not st.session_state.paused:
-                        ret, frame = read_frame_at(cap, st.session_state.frame_index)
-                        if not ret:
-                            st.warning("Impossible de lire la frame.")
-                        else:
-                            results = model(frame, conf=0.5)[0]
-                            annotated = results.plot()
-                            annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
-                            placeholder.image(annotated_rgb, use_container_width=True)
-
-                            has_detection = len(results.boxes) > 0
-                            idx = st.session_state.frame_index
-
-                            should_capture = True
-                            if st.session_state.get("capture_only_when_detection", True):
-                                should_capture = has_detection
-
-                            if should_capture and idx != st.session_state.last_saved_index:
-                                thumb_bytes = make_thumbnail(annotated_rgb)
-                                cls_id = int(results.boxes.cls[0]) if has_detection else -1
-                                label = model.names[cls_id] if has_detection else "no_object"
-                                st.session_state.captured_frames.append((thumb_bytes, label, idx))
-                                st.session_state.last_saved_index = idx
-
-                                if has_detection:
-                                    st.session_state.counts["total"] += 1
-                                    if cls_id == 0:
-                                        st.session_state.counts["vide"] += 1
-                                    elif cls_id == 1:
-                                        st.session_state.counts["pleine"] += 1
-
-                            st.session_state.last_frame = annotated_rgb
-                            st.session_state.frame_index += 1
-                            time.sleep(0.1)
-                            st.rerun()
-                    else:
-                        if st.session_state.last_frame is not None:
-                            placeholder.image(st.session_state.last_frame, use_container_width=True)
-                        else:
-                            st.info("Vidéo prête. Cliquez sur ▶️ Reprendre pour lancer la détection.")
-
-with col_info:
-    st.markdown("<div class='card'><strong>ℹ️ Infos</strong></div>", unsafe_allow_html=True)
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.write("**Statistiques (captures vidéo)**")
-    st.write(f"- Total détections: **{st.session_state.counts['total']}**")
-    st.write(f"- Poubelles vides: **{st.session_state.counts['vide']}**")
-    st.write(f"- Poubelles pleines: **{st.session_state.counts['pleine']}**")
+        frame_interval = 30
+    
     st.markdown("---")
-    st.write(f"- FPS simulé: 8")
-    st.write(f"- Seuil confidence: 0.5")
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.subheader("📊 Statistiques")
+    if "counts" in st.session_state:
+        st.write(f"🔢 Total: **{st.session_state.counts['total']}**")
+        st.write(f"🟢 Vides: **{st.session_state.counts['vide']}**")
+        st.write(f"🔴 Pleines: **{st.session_state.counts['pleine']}**")
 
-# Affichage des miniatures capturées
 st.markdown("---")
-st.subheader("📸 Frames capturées (dernières)")
 
-captures = st.session_state.captured_frames[-24:] if st.session_state.captured_frames else []
-if len(captures) == 0:
-    st.info("Aucune capture pour l'instant (lancer la détection sur une vidéo).")
+if file:
+    ftype = file.type
+
+    if ftype.startswith("image"):
+        st.subheader("🖼️ Image originale")
+        st.image(file, use_container_width=True)
+
+        if st.button("🚀 Lancer la détection (Image)"):
+            with st.spinner("Analyse en cours..."):
+                results = predict_image(file)
+                annotated = results.plot()
+                
+                st.subheader("📦 Résultat de la détection")
+                st.image(annotated, channels="RGB", use_container_width=True)
+                
+                boxes = results.boxes
+                if len(boxes) > 0:
+                    st.subheader("📊 Détails")
+                    for i, box in enumerate(boxes):
+                        cls = int(box.cls[0])
+                        conf = float(box.conf[0])
+                        classe = model.names[cls]
+                        
+                        col1, col2, col3 = st.columns([2, 1, 1])
+                        with col1:
+                            st.write(f"**Détection {i+1}:** {classe}")
+                        with col2:
+                            st.write(f"Confiance: {conf:.2%}")
+                        with col3:
+                            icon = "🟢" if cls == 0 else "🔴"
+                            st.write(icon)
+
+    elif ftype.startswith("video"):
+        st.subheader("🎬 Vidéo uploadée")
+        st.video(file)
+
+        if st.button("🚀 Lancer la détection (Vidéo)"):
+            st.warning(f"⏱️ La vidéo sera analysée toutes les {frame_interval} secondes")
+            with st.spinner("Analyse vidéo en cours..."):
+                predict_video(file, frame_interval)
+            
+            if "captured_frames" in st.session_state and len(st.session_state.captured_frames) > 0:
+                st.markdown("---")
+                st.subheader("📸 Frames capturées")
+                
+                cols = st.columns(4)
+                for idx, (img, label, timestamp) in enumerate(st.session_state.captured_frames):
+                    with cols[idx % 4]:
+                        st.image(img, caption=f"{label} ({timestamp})", use_container_width=True)
+
 else:
-    cols = st.columns(4)
-    for i, (img_bytes, label, idx) in enumerate(reversed(captures)):
-        col = cols[i % 4]
-        with col:
-            st.image(img_bytes, caption=f"{label} — frame {idx}", use_container_width=True)
-            dlname = f"frame_{idx}_{label}.jpg"
-            st.download_button(f"Télécharger {i+1}", data=img_bytes, file_name=dlname, mime="image/jpeg")
+    st.info("➡️ Upload une image ou une vidéo pour commencer.")
 
-zip_buf = save_captures_as_zip(st.session_state.captured_frames)
-st.download_button("📥 Télécharger toutes les captures (ZIP)", data=zip_buf, file_name="captures.zip", mime="application/zip")
 
-st.markdown("<hr style='border:1px solid rgba(255,255,255,0.04)'/>", unsafe_allow_html=True)
-st.caption("Développé par Fatou Mbengue — YOLOv8 • LabelImg • Streamlit")
+
 
