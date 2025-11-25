@@ -18,7 +18,7 @@ st.set_page_config(
 
 st.markdown("""
     <h1 style='text-align:center; color:#58a6ff;'>🗑️ Détection de Poubelles (Pleines / Vides)</h1>
-    <p style='text-align:center; font-size:18px; color:#e6edf3;'>
+    <p style='text-align:center; font-size:18px; color:#0A3D62;'>
         Analyse d’image ou vidéo — avec affichage du type de poubelle sous chaque frame détectée.
     </p>
 """, unsafe_allow_html=True)
@@ -199,3 +199,4 @@ if file:
 
 else:
     st.info("📥 Upload une image ou une vidéo pour commencer.")
+
