@@ -50,7 +50,7 @@ def predict_image(upload):
 #   PREDICTION VIDEO
 # ---------------------------
 def predict_video(upload, interval_seconds=1):
-    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     tfile.write(upload.read())
     tfile.close()
 
@@ -93,8 +93,9 @@ def predict_video(upload, interval_seconds=1):
         minutes = int(timestamp // 60)
         seconds = int(timestamp % 60)
 
-        # Count detections
         labels_in_frame = []
+
+        # Count detections
         for box in results.boxes:
             cls = int(box.cls[0])
 
@@ -115,7 +116,6 @@ def predict_video(upload, interval_seconds=1):
         else:
             final_label = "Mix: " + ", ".join(set(labels_in_frame))
 
-        # Save thumbnail
         thumb = cv2.resize(annotated, (320, 200))
         thumb = cv2.cvtColor(thumb, cv2.COLOR_BGR2RGB)
 
@@ -161,7 +161,7 @@ st.markdown("---")
 if file:
     ftype = file.type
 
-    # IMAGE
+    # IMAGE MODE
     if ftype.startswith("image"):
         st.subheader("🖼️ Image")
         st.image(file, use_container_width=True)
@@ -174,7 +174,10 @@ if file:
                 st.subheader("📦 Résultat")
                 st.image(annotated, channels="RGB", use_container_width=True)
 
-    # VIDEO
+                if len(results.boxes) == 0:
+                    st.warning("⚠️ Aucune détection trouvée dans l’image.")
+
+    # VIDEO MODE
     elif ftype.startswith("video"):
         st.subheader("🎬 Vidéo uploadée")
         st.video(file)
